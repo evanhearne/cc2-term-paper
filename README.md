@@ -62,3 +62,26 @@ podman run -d -p 8080:8080 cc2-term-paper-api
 ```
 
 See [above](#how-to-run-api) for API usage . 
+
+## Kuadrant
+
+### Setting up Kuadrant
+
+See [here](https://docs.kuadrant.io/dev/getting-started/) for setting up Kuadrant.
+
+### Apply policies
+
+Custom resource files and policies were created following the [SCP guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/full-walkthrough/secure-protect-connect/) . 
+
+|File|Description|
+|----|-----------|
+|api.yaml|Deploy custom API image into cluster.|
+|api-httproute.yaml|Set up HTTP route for custom API in cluster. |
+|gateway-tlspolicy.yaml|Deploy Gateway TLS Policy in cluster. |
+|gateway-denyall-auth-policy.yaml|Deploy Auth Policy in cluster. |
+|gateway-lowlimit-rate-policy.yaml|Deploy rate limiting policy in cluster. |
+|gateway-dnspolicy.yaml|Deploy DNS Policy in cluster. |
+
+CR's and policies can be applied using `kubectl apply -f <file_name>` . 
+
+They are currently being applied following the [SCP guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/full-walkthrough/secure-protect-connect/) . 
