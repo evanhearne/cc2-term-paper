@@ -87,6 +87,7 @@ CR's and policies can be applied using `kubectl apply -f <file_name>` .
 They are currently being applied following the [SCP guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/full-walkthrough/secure-protect-connect/) . 
 
 ### Enforce authentication
+This [guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/auth/auth-for-app-devs-and-platform-engineers/) was followed with some modifications for the following:
 
 #### Set up Kuadrant
 ```bash
