@@ -261,3 +261,103 @@ kubectl -n my-gateways apply -f tls-httproute.yaml
 kubectl -n my-gateways port-forward svc/prod-web-istio 8443:443
 curl -vk https://api.api.local:8443/ping --resolve "api.api.local:8443:127.0.0.1"
 ```
+
+### Enforce rate limiting
+
+This [guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/ratelimiting/gateway-rl-for-cluster-operators/) was used to set up rate limiting. 
+
+- Set up Kuadrant as before, then:
+
+#### Deploy API
+
+```bash
+kubectl apply -f api.yaml
+```
+
+#### Create the ingress gateways
+
+```bash
+kubectl create namespace gateway-system
+kubectl -n gateway-system apply -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: external
+  annotations:
+    kuadrant.io/namespace: kuadrant-system
+    networking.istio.io/service-type: ClusterIP
+spec:
+  gatewayClassName: istio
+  listeners:
+
+  - name: external
+    port: 80
+    protocol: HTTP
+    hostname: '*.io'
+    allowedRoutes:
+      namespaces:
+        from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: internal
+  annotations:
+    kuadrant.io/namespace: kuadrant-system
+    networking.istio.io/service-type: ClusterIP
+spec:
+  gatewayClassName: istio
+  listeners:
+  - name: local
+    port: 80
+    protocol: HTTP
+    hostname: '*.local'
+    allowedRoutes:
+      namespaces:
+        from: All
+EOF
+```
+
+#### Create Rate Limit Policy
+
+```bash
+kubectl apply -n gateway-system -f - <<EOF
+apiVersion: kuadrant.io/v1
+kind: RateLimitPolicy
+metadata:
+  name: gw-rlp
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: external
+  limits:
+    "global":
+      rates:
+
+      - limit: 5
+        window: 10s
+EOF
+```
+
+#### Add HTTPRoute
+```bash
+kubectl apply -f rlp-httproute.yaml
+```
+
+#### Verify rate limiting in place
+##### Expose services
+```bash
+kubectl port-forward -n gateway-system service/external-istio 9081:80 >/dev/null 2>&1 &
+kubectl port-forward -n gateway-system service/internal-istio 9082:80 >/dev/null 2>&1 &
+```
+
+##### Up to 5 successful requests via external gateway
+```bash
+while :; do curl --write-out '%{http_code}\n' --silent --output /dev/null -H 'Host: api.api.io' http://localhost:9081/ping | grep -E --color "\b(429)\b|$"; sleep 1; done
+```
+
+##### Unlimited requests via internal gateway
+```bash
+while :; do curl --write-out '%{http_code}\n' --silent --output /dev/null -H 'Host: api.api.local' http://localhost:9082/ping | grep -E --color "\b(429)\b|$"; sleep 1; done
+```
