@@ -12,17 +12,13 @@ spec:
   - name: external
     namespace: api-gateway
   hostnames:
-  - "api.evanhearnesetu.com"
+  - api.evanhearnesetu.com
   rules:
   - matches:
     - method: GET
       path:
         type: PathPrefix
-        value: "/ping"
-    - method: POST
-      path:
-        type: PathPrefix
-        value: "/echo"    
+        value: "/ping"  
     backendRefs:
     - name: api
-      port: 8080  
+      port: 80
