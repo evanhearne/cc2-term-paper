@@ -190,3 +190,74 @@ curl -H 'Host: api.evanhearnesetu.com' http://localhost:8081/ping -i
 ```bash
 curl -H 'Host: api.evanhearnesetu.com' -H 'Authorization: APIKEY iamaregularuser' http://localhost:8081/ping -i
 ```
+
+### Configuring TLS
+
+This [guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/tls/gateway-tls/#verify-tls-works-by-sending-requests) was used and modified for my use case.
+
+- Set up Kuadrant as before, then:
+
+#### Create new namespace for gateway
+```bash
+kubectl create namespace my-gateways
+```
+
+#### Create gateway
+```bash
+kubectl -n my-gateways apply -f ingress-gateway.yaml
+```
+
+#### Configure TLS with issuer + TLS Policy
+
+```bash
+kubectl apply -n my-gateways -f - <<EOF
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+EOF
+```
+```bash
+kubectl get issuer selfsigned-issuer -n my-gateways
+```
+```bash
+kubectl apply -n my-gateways -f - <<EOF
+apiVersion: kuadrant.io/v1
+kind: TLSPolicy
+metadata:
+  name: prod-web
+spec:
+  targetRef:
+    name: prod-web
+    group: gateway.networking.k8s.io
+    kind: Gateway
+  issuerRef:
+    group: cert-manager.io
+    kind: Issuer
+    name: selfsigned-issuer
+EOF
+```
+```bash
+kubectl get tlspolicy -o wide -n my-gateways
+```
+```bash
+kubectl get certificates -n my-gateways
+```
+```bash
+kubectl get secrets -n my-gateways --field-selector="type=kubernetes.io/tls"
+```
+
+#### Deploy API
+```bash
+kubectl -n my-gateways apply -f api.yaml
+kubectl -n my-gateways wait --for=condition=Available deployments api --timeout=60s
+kubectl -n my-gateways apply -f tls-httproute.yaml
+```
+
+#### Test TLS Connection
+```bash
+kubectl -n my-gateways port-forward svc/prod-web-istio 8443:443
+curl -vk https://api.api.local:8443/ping --resolve "api.api.local:8443:127.0.0.1"
+```
