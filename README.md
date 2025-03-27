@@ -85,3 +85,107 @@ Custom resource files and policies were created following the [SCP guide](https:
 CR's and policies can be applied using `kubectl apply -f <file_name>` . 
 
 They are currently being applied following the [SCP guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/full-walkthrough/secure-protect-connect/) . 
+
+### Enforce authentication
+
+#### Set up Kuadrant
+```bash
+sudo cloud-provider-kind &
+kind create cluster
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
+helm repo add jetstack https://charts.jetstack.io --force-update
+helm install \
+  cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --version v1.15.3 \
+  --set crds.enabled=true
+helm install sail-operator \
+		--create-namespace \
+		--namespace istio-system \
+		--wait \
+		--timeout=300s \
+		https://github.com/istio-ecosystem/sail-operator/releases/download/0.1.0/sail-operator-0.1.0.tgz
+
+kubectl apply -f -<<EOF
+apiVersion: sailoperator.io/v1alpha1
+kind: Istio
+metadata:
+  name: default
+spec:
+  # Supported values for sail-operator v0.1.0 are [v1.22.4,v1.23.0]
+  version: v1.23.0
+  namespace: istio-system
+  # Disable autoscaling to reduce dev resources
+  values:
+    pilot:
+      autoscaleEnabled: false
+EOF
+helm repo add kuadrant https://kuadrant.io/helm-charts/ --force-update
+helm install \
+ kuadrant-operator kuadrant/kuadrant-operator \
+ --create-namespace \
+ --namespace kuadrant-system
+kubectl apply -f - <<EOF
+apiVersion: kuadrant.io/v1beta1
+kind: Kuadrant
+metadata:
+  name: kuadrant
+  namespace: kuadrant-system
+EOF
+until kubectl wait --for=condition=Ready kuadrant/kuadrant -n kuadrant-system --timeout=300s; do
+    echo "Waiting for Kuadrant to be ready..."
+    sleep 10
+done
+```
+
+#### Deploy API + test connection
+```bash
+export KUADRANT_GATEWAY_NS=api-gateway
+export KUADRANT_GATEWAY_NAME=external
+export KUADRANT_DEVELOPER_NS=cc2-term-paper-api
+kubectl create ns ${KUADRANT_GATEWAY_NS}
+kubectl apply -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ${KUADRANT_GATEWAY_NAME}
+  namespace: ${KUADRANT_GATEWAY_NS}
+  labels:
+    kuadrant.io/gateway: "true"
+spec:
+  gatewayClassName: istio
+  listeners:
+
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+EOF
+kubectl get gateway ${KUADRANT_GATEWAY_NAME} -n ${KUADRANT_GATEWAY_NS} -o=jsonpath='{.status.conditions[?(@.type=="Accepted")].message}{"\n"}{.status.conditions[?(@.type=="Programmed")].message}{"\n"}'
+kubectl create ns ${KUADRANT_DEVELOPER_NS}
+kubectl apply -f api.yaml -n ${KUADRANT_DEVELOPER_NS}
+kubectl apply -f api-httproute.yaml 
+kubectl port-forward -n api-gateway svc/external-istio 8081:80 &
+```
+```bash
+curl -H 'Host: api.evanhearnesetu.com' http://localhost:8081/ping -i
+```
+
+#### Apply basic auth policy + API Keys
+```bash
+kubectl apply -f gateway-auth-policy.yaml
+kubectl -n kuadrant-system apply -f kuadrant-api-key.yaml
+```
+
+#### Attempt to access endpoint with no key
+```bash
+curl -H 'Host: api.evanhearnesetu.com' http://localhost:8081/ping -i
+```
+
+#### Attempt to access endpoint with key
+```bash
+curl -H 'Host: api.evanhearnesetu.com' -H 'Authorization: APIKEY iamaregularuser' http://localhost:8081/ping -i
+```
