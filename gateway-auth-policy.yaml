@@ -1,0 +1,22 @@
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: api-authn
+  namespace: cc2-term-paper-api
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: api
+  defaults:
+    strategy: merge
+    rules:
+      authentication:
+        "api-key-authn":
+          apiKey:
+            selector:
+              matchLabels:
+                app: api
+          credentials:
+            authorizationHeader:
+              prefix: APIKEY

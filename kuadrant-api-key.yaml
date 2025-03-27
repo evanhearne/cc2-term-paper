@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-key-regular-user
+  labels:
+    authorino.kuadrant.io/managed-by: authorino
+    app: api
+stringData:
+  api_key: iamaregularuser
+type: Opaque
