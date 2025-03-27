@@ -65,26 +65,39 @@ See [above](#how-to-run-api) for API usage .
 
 ## Kuadrant
 
+### A note on resource availability within your container runtime.
+
+Make sure you have at least 6GB+ of memory allocated in your container runtime. This can be done within your container runtime configuration. Read the docs for your container runtime to do so.
+
 ### Setting up Kuadrant
 
 See [here](https://docs.kuadrant.io/dev/getting-started/) for setting up Kuadrant.
 
+### Observability
+
+By setting up observability first, we will have metrics to show for all our policies and API testing.
+
+Clone [kuadrant-operator](https://github.com/Kuadrant/kuadrant-operator/tree/main) and cd into the root directory of repository . Run the commands listed [here](https://github.com/Kuadrant/kuadrant-operator/tree/main/config/observability#deploying-the-observabilty-stack) to deploy the observability stack, remembering that we have an istio gateway. 
+
+Then expose Grafana using `kubectl -n monitoring port-forward service/grafana 3000:3000` . The username and password is `admin` . 
+
+After this, you can head back to cc2-term-paper repo for the following documentation.
+
 ### Apply policies
 
-Custom resource files and policies were created following the [SCP guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/full-walkthrough/secure-protect-connect/) . 
+Custom resource files and policies were created following the [SCP guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/full-walkthrough/secure-protect-connect/) and other guides listed below . 
 
 |File|Description|
 |----|-----------|
 |api.yaml|Deploy custom API image into cluster.|
 |api-httproute.yaml|Set up HTTP route for custom API in cluster. |
-|gateway-tlspolicy.yaml|Deploy Gateway TLS Policy in cluster. |
-|gateway-denyall-auth-policy.yaml|Deploy Auth Policy in cluster. |
-|gateway-lowlimit-rate-policy.yaml|Deploy rate limiting policy in cluster. |
-|gateway-dnspolicy.yaml|Deploy DNS Policy in cluster. |
+|gateway-auth-policy.yaml|AuthPolicy for securing an external gateway with API Keys.|
+|kuadrant-api-key.yaml|API Keys stored as secrets in the cluster - for use with auth policies.|
+|ingress-gateway.yaml|An ingress gateway CR.|
+|tls-httproute.yaml|Custom HTTP route for API in TLSPolicy setup.|
+|rlp-httproute.yaml|Custom HTTP route for API in RateLimitPolicy setup.|
 
-CR's and policies can be applied using `kubectl apply -f <file_name>` . 
-
-They are currently being applied following the [SCP guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/full-walkthrough/secure-protect-connect/) . 
+CR's and policies can be applied using `kubectl apply -f <file_name>` followed by `-n <namespace>` for a chosen namespace to deploy into. 
 
 ### Enforce authentication
 This [guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/auth/auth-for-app-devs-and-platform-engineers/) was followed with some modifications for the following:
@@ -169,6 +182,11 @@ kubectl get gateway ${KUADRANT_GATEWAY_NAME} -n ${KUADRANT_GATEWAY_NS} -o=jsonpa
 kubectl create ns ${KUADRANT_DEVELOPER_NS}
 kubectl apply -f api.yaml -n ${KUADRANT_DEVELOPER_NS}
 kubectl apply -f api-httproute.yaml 
+```
+This step is required to expose the gateway on macOS systems as Docker based IPs do not expose correctly without [docker-mac-net-connect](https://github.com/chipmk/docker-mac-net-connect) . 
+
+If [docker-mac-net-connect](https://github.com/chipmk/docker-mac-net-connect) is set up correctly, using the load-balancer IP followed by the exposed port should work, though this was not tested during setup. 
+```bash
 kubectl port-forward -n api-gateway svc/external-istio 8081:80 &
 ```
 ```bash
