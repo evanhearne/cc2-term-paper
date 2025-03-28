@@ -65,25 +65,7 @@ See [above](#how-to-run-api) for API usage .
 
 ## Kuadrant
 
-### A note on resource availability within your container runtime.
-
-Make sure you have at least 6GB+ of memory allocated in your container runtime. This can be done within your container runtime configuration. Read the docs for your container runtime to do so.
-
-### Setting up Kuadrant
-
-See [here](https://docs.kuadrant.io/dev/getting-started/) for setting up Kuadrant.
-
-### Observability
-
-By setting up observability first, we will have metrics to show for all our policies and API testing.
-
-Clone [kuadrant-operator](https://github.com/Kuadrant/kuadrant-operator/tree/main) and cd into the root directory of repository . Run the commands listed [here](https://github.com/Kuadrant/kuadrant-operator/tree/main/config/observability#deploying-the-observabilty-stack) to deploy the observability stack, remembering that we have an istio gateway. 
-
-Then expose Grafana using `kubectl -n monitoring port-forward service/grafana 3000:3000` . The username and password is `admin` . 
-
-After this, you can head back to cc2-term-paper repo for the following documentation.
-
-### Apply policies
+### Policies
 
 Custom resource files and policies were created following the [SCP guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/full-walkthrough/secure-protect-connect/) and other guides listed below . 
 
@@ -99,10 +81,14 @@ Custom resource files and policies were created following the [SCP guide](https:
 
 CR's and policies can be applied using `kubectl apply -f <file_name>` followed by `-n <namespace>` for a chosen namespace to deploy into. 
 
-### Enforce authentication
-This [guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/auth/auth-for-app-devs-and-platform-engineers/) was followed with some modifications for the following:
+### A note on resource availability within your container runtime.
 
-#### Set up Kuadrant
+Make sure you have at least 6GB+ of memory allocated in your container runtime. This can be done within your container runtime configuration. Read the docs for your container runtime to do so.
+
+### Setting up Kuadrant
+
+See [here](https://docs.kuadrant.io/dev/getting-started/) for more info on setting up Kuadrant.
+
 ```bash
 sudo cloud-provider-kind &
 kind create cluster
@@ -152,6 +138,19 @@ until kubectl wait --for=condition=Ready kuadrant/kuadrant -n kuadrant-system --
     sleep 10
 done
 ```
+
+### Observability
+
+By setting up observability first, we will have metrics to show for all our policies and API testing.
+
+Clone [kuadrant-operator](https://github.com/Kuadrant/kuadrant-operator/tree/main) and cd into the root directory of repository . Run the commands listed [here](https://github.com/Kuadrant/kuadrant-operator/tree/main/config/observability#deploying-the-observabilty-stack) to deploy the observability stack, remembering that we have an istio gateway. 
+
+Then expose Grafana using `kubectl -n monitoring port-forward service/grafana 3000:3000` . The username and password is `admin` . 
+
+After this, you can head back to cc2-term-paper repo for the following documentation.
+
+### Enforce authentication
+This [guide](https://docs.kuadrant.io/dev/kuadrant-operator/doc/user-guides/auth/auth-for-app-devs-and-platform-engineers/) was followed with some modifications for the following:
 
 #### Deploy API + test connection
 ```bash
